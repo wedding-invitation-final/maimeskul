@@ -1,0 +1,125 @@
+const progressBar = document.getElementById("progressBar");
+const openInvitation = document.getElementById("openInvitation");
+const invitation = document.getElementById("invitation");
+
+const musicButton = document.getElementById("musicButton");
+const musicIcon = document.getElementById("musicIcon");
+const music = document.getElementById("backgroundMusic");
+
+const openRsvp = document.getElementById("openRsvp");
+const closeRsvp = document.getElementById("closeRsvp");
+const rsvpDialog = document.getElementById("rsvpDialog");
+const rsvpForm = document.getElementById("rsvpForm");
+const toast = document.getElementById("toast");
+
+// Плавний перехід до запрошення
+openInvitation.addEventListener("click", async () => {
+  invitation.scrollIntoView({ behavior: "smooth" });
+
+  // Музика може початися лише після дії користувача.
+  // Якщо audio/music.mp3 не додано, сайт продовжить працювати без музики.
+  try {
+    await music.play();
+    musicButton.classList.add("playing");
+    musicIcon.textContent = "Ⅱ";
+    musicButton.setAttribute("aria-label", "Вимкнути музику");
+  } catch {
+    // Файл музики відсутній або браузер заблокував відтворення.
+  }
+});
+
+// Кнопка музики
+musicButton.addEventListener("click", async () => {
+  if (music.paused) {
+    try {
+      await music.play();
+      musicButton.classList.add("playing");
+      musicIcon.textContent = "Ⅱ";
+      musicButton.setAttribute("aria-label", "Вимкнути музику");
+    } catch {
+      showToast("Додайте файл audio/music.mp3");
+    }
+  } else {
+    music.pause();
+    musicButton.classList.remove("playing");
+    musicIcon.textContent = "♫";
+    musicButton.setAttribute("aria-label", "Увімкнути музику");
+  }
+});
+
+// Прогрес прокрутки
+function updateProgress() {
+  const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+  const percent = scrollable > 0 ? (window.scrollY / scrollable) * 100 : 0;
+  progressBar.style.width = `${Math.min(percent, 100)}%`;
+}
+
+window.addEventListener("scroll", updateProgress, { passive: true });
+updateProgress();
+
+// Поява блоків і легкий zoom фонів
+const observer = new IntersectionObserver(
+  (entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add("visible");
+        entry.target.closest(".image-screen")?.classList.add("in-view");
+      }
+    });
+  },
+  { threshold: 0.2 }
+);
+
+document.querySelectorAll(".reveal").forEach((element) => observer.observe(element));
+
+// RSVP
+openRsvp.addEventListener("click", () => {
+  if (typeof rsvpDialog.showModal === "function") {
+    rsvpDialog.showModal();
+  } else {
+    rsvpDialog.setAttribute("open", "");
+  }
+});
+
+closeRsvp.addEventListener("click", () => rsvpDialog.close());
+
+rsvpDialog.addEventListener("click", (event) => {
+  const rect = rsvpDialog.getBoundingClientRect();
+  const inside =
+    event.clientX >= rect.left &&
+    event.clientX <= rect.right &&
+    event.clientY >= rect.top &&
+    event.clientY <= rect.bottom;
+
+  if (!inside) rsvpDialog.close();
+});
+
+// Демо-збереження RSVP.
+// Для реального надсилання відповідей підключіть Formspree — інструкція у README.
+rsvpForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+
+  const data = Object.fromEntries(new FormData(rsvpForm).entries());
+  localStorage.setItem("wedding-rsvp", JSON.stringify({
+    ...data,
+    sentAt: new Date().toISOString()
+  }));
+
+  rsvpDialog.close();
+  rsvpForm.reset();
+  showToast("Дякуємо за Вашу відповідь!");
+});
+
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.add("show");
+  window.setTimeout(() => toast.classList.remove("show"), 3200);
+}
+
+// Персоналізація через посилання:
+// index.html?guest=Дорогі%20Олена%20та%20Максим
+const params = new URLSearchParams(window.location.search);
+const guest = params.get("guest");
+if (guest) {
+  document.getElementById("guestGreeting").textContent = guest;
+}
